@@ -1,12 +1,22 @@
 import logging
+from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
     QGraphicsView, QMainWindow, QPushButton, QVBoxLayout,
-    QWidget, QCheckBox, QComboBox
+    QWidget, QCheckBox, QComboBox,
+    QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
+    QDockWidget, QLabel, QPushButton, QComboBox, QListWidget,
+    QGraphicsView, QGraphicsScene, QSizePolicy, QFrame
 )
-from PyQt6.QtGui import QIcon, QPixmap
+from PyQt6.QtGui import QIcon, QPixmap, QPainter
+from peg_game_state import GameState
 from peg_board import GameBoard
+from peg_player_panel import PlayerDock
+from peg_sandbox_panel import SandboxDock
 import peg_pieces
 from PyQt6.QtGui import QPalette, QColor
+from PyQt6.QtWidgets import QGraphicsView
+from PyQt6.QtGui import QWheelEvent
+from PyQt6.QtCore import Qt
 
 
 # Define all colors as hex strings
@@ -24,86 +34,134 @@ COLOR_BRIGHT_TEXT = "#ff0000"  # Error text
 COLOR_HIGHLIGHT = "#2a82da"  # Selection/active
 COLOR_HIGHLIGHT_TEXT = "#000000"
 
+ZOOM_FACTOR = 1.02
+
+
+class ZoomableGraphicsView(QGraphicsView):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.setTransformationAnchor(QGraphicsView.ViewportAnchor.AnchorUnderMouse)
+        self.setResizeAnchor(QGraphicsView.ViewportAnchor.AnchorUnderMouse)
+
+    def wheelEvent(self, event: QWheelEvent):
+        # If the user holds Ctrl or scrolls over empty space (not over a hex with a number)
+        if event.modifiers() == Qt.KeyboardModifier.ControlModifier or not self.itemAt(event.position().toPoint()):
+            zoom_in = event.angleDelta().y() > 0
+            factor = ZOOM_FACTOR if zoom_in else 1 / ZOOM_FACTOR
+            self.scale(factor, factor)
+        else:
+            # Propagate event normally (for hex number cycling etc.)
+            super().wheelEvent(event)
+
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.logger = logging.getLogger(self.__class__.__name__)
         self.setWindowTitle("PEG Simulator")
-        self.resize(1000, 800)
 
-        self.view = QGraphicsView()
-        self.board = GameBoard()
-        self.view.setScene(self.board)
+        # === CENTRAL AREA (Game Board) ===
+        central_widget = QWidget()
+        central_layout = QVBoxLayout()
+        central_widget.setLayout(central_layout)
+        self.setCentralWidget(central_widget)
 
-        btn_p = QPushButton("P - Play")
-        btn_p.clicked.connect(self.board.play_phase)
+        self.game_state = GameState()
+        self.board = GameBoard(game_state=self.game_state)
+        self.game_state.board = self.board  # chicken/egg...
 
-        btn_e = QPushButton("E - Eat")
-        btn_e.clicked.connect(self.board.eat_phase)
+        # self.board_view = QGraphicsView()
+        self.board_view = ZoomableGraphicsView()
+        # self.board_scene = QGraphicsScene()
+        self.board_view.setScene(self.board)
+        self.board_view.setRenderHints(self.board_view.renderHints() | QPainter.RenderHint.Antialiasing)
+        central_layout.addWidget(self.board_view)
 
-        btn_g = QPushButton("G - Grow")
-        btn_g.clicked.connect(self.board.grow_phase)
+        # === TOP PANEL (Dice & PEG Controls) ===
+        top_bar = QHBoxLayout()
 
-        self.hex_orientation_toggle = QCheckBox("Pointy-Topped Hexes")
-        self.hex_orientation_toggle.setChecked(True)
-        self.hex_orientation_toggle.stateChanged.connect(self.toggle_orientation)
+        # Dice Pool
+        self.dice_pool_label = QLabel("🎲 Dice Pool:")
+        top_bar.addWidget(self.dice_pool_label)
 
-        self.sandbox_toggle = QCheckBox("Sandbox Mode")
-        self.sandbox_toggle.stateChanged.connect(self.toggle_sandbox)
+        # PEG Phase Buttons
+        self.play_button = QPushButton("P (Play)")
+        self.eat_button = QPushButton("E (Eat)")
+        self.grow_button = QPushButton("G (Grow)")
 
-        self.color_dropdown = self.get_color_dropdown()
-        self.color_dropdown.currentTextChanged.connect(self.set_board_paint_color)
-        self.set_board_paint_color()
+        top_bar.addWidget(self.play_button)
+        top_bar.addWidget(self.eat_button)
+        top_bar.addWidget(self.grow_button)
 
-        self.add_peg_button = QPushButton("Add Peg")
-        self.add_peg_button.clicked.connect(self.board.add_random_peg)
+        # Current Growth Die Display
+        self.growth_label = QLabel("✖️ Growth Die: ?")
+        top_bar.addWidget(self.growth_label)
 
-        self.add_rain_die_button = QPushButton("Add Rain Die")
-        self.add_rain_die_button.clicked.connect(self.board.add_rain_die)
+        top_bar.addStretch()
+        central_layout.insertLayout(0, top_bar)  # Insert above board
 
-        layout = QVBoxLayout()
-        layout.addWidget(self.view)
-        layout.addWidget(btn_p)
-        layout.addWidget(btn_e)
-        layout.addWidget(btn_g)
-        layout.addWidget(self.hex_orientation_toggle)
-        layout.addWidget(self.sandbox_toggle)
-        layout.addWidget(self.color_dropdown)
-        layout.addWidget(self.add_peg_button)
-        layout.addWidget(self.add_rain_die_button)
+        # === RIGHT SIDEBAR (Player Info Panel) ===
+        # self.player_dock = QDockWidget("Players", self)
+        self.player_dock = PlayerDock(game_state=self.game_state, parent=self)
+        self.player_dock.setAllowedAreas(Qt.DockWidgetArea.RightDockWidgetArea)
+        self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.player_dock)
 
-        container = QWidget()
-        container.setLayout(layout)
-        self.setCentralWidget(container)
+        player_dock_toggle_button = QPushButton("Show Player Panel")
+        player_dock_toggle_button.setCheckable(True)
+        player_dock_toggle_button.setChecked(True)
+        player_dock_toggle_button.toggled.connect(self.player_dock.setVisible)
+        self.player_dock.visibilityChanged.connect(player_dock_toggle_button.setChecked)
+        top_bar.addWidget(player_dock_toggle_button)
 
-    def get_color_dropdown(self):
-        """
-        Creates a QComboBox with color swatches.
+        # player_panel = QWidget()
+        # player_layout = QVBoxLayout()
+        # player_panel.setLayout(player_layout)
+        #
+        # for i in range(4):  # Placeholder for 4 players
+        #     label = QLabel(f"🧍 Player {i+1}")
+        #     label.setFrameStyle(QFrame.Shape.Box | QFrame.Shadow.Plain)
+        #     player_layout.addWidget(label)
+        #
+        # self.player_dock.setWidget(player_panel)
 
-        Returns:
-            QComboBox: The dropdown widget.
-        """
+        # === LEFT SIDEBAR (Sandbox / Editor Tools) ===
+        # self.sandbox_dock = QDockWidget("Sandbox Tools", self)
+        self.sandbox_dock = SandboxDock(main_window=self, parent=self)
+        self.sandbox_dock.setAllowedAreas(Qt.DockWidgetArea.LeftDockWidgetArea)
+        self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.sandbox_dock)
 
-        combo = QComboBox()
-        for color in peg_pieces.HEX_COLORS:
-            pixmap = QPixmap(20, 20)
-            pixmap.fill(QColor(color))
-            icon = QIcon(pixmap)
-            combo.addItem(icon, str(color).upper())
+        sandbox_dock_toggle_button = QPushButton("Show Sandbox Panel")
+        sandbox_dock_toggle_button.setCheckable(True)
+        sandbox_dock_toggle_button.setChecked(True)
+        sandbox_dock_toggle_button.toggled.connect(self.sandbox_dock.setVisible)
+        self.sandbox_dock.visibilityChanged.connect(sandbox_dock_toggle_button.setChecked)
+        top_bar.addWidget(sandbox_dock_toggle_button)
 
-        return combo
+        # === BOTTOM PANEL (PEG Turn Order & Log) ===
+        bottom_bar = QHBoxLayout()
 
-    def set_board_paint_color(self):
-        self.board.paint_color = self.color_dropdown.currentText()
+        self.turn_order_label = QLabel("🔁 Phase Order: [PLAY → EAT → GROW]")
+        bottom_bar.addWidget(self.turn_order_label)
 
-    def toggle_orientation(self):
-        self.board.pointy_top = self.hex_orientation_toggle.isChecked()
+        self.status_log = QListWidget()
+        self.status_log.setMaximumHeight(100)
+        central_layout.addLayout(bottom_bar)
+        central_layout.addWidget(self.status_log)
+
+        # === INIT STATE ===
+        self.status_log.addItem("PEG Simulator Initialized.")
+
+    def log(self, msg):
+        self.logger.info(msg)
+        self.status_log.addItem(msg)
+
+    def update_all(self):
+        """Redraw all elements"""
+        self.log('Update player dock')
+        self.player_dock.update_panel()
+        self.log('Update game board')
         self.board.draw_board()
-
-    def toggle_sandbox(self):
-        self.board.sandbox_mode = self.sandbox_toggle.isChecked()
-        print(f"Sandbox Mode: {self.board.sandbox_mode}")
+        # self.sandbox_dock.
 
 
 def apply_dark_palette(app):

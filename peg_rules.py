@@ -35,6 +35,7 @@ def eat_phase_logic(board):
     LOGGER.info("EAT scores:", dict(board.eat_scores))
     board.draw_board()
 
+
 def grow_phase_logic(board):
     LOGGER.info("GROW phase triggered.")
     board.growth_die = random.randint(1, 6)
@@ -53,4 +54,5 @@ def grow_phase_logic(board):
                     break
             if grew:
                 LOGGER.info(f"{peg.player} peg grew to size {peg.size} at {tile.coords()}")
+
     board.draw_board()
