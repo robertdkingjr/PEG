@@ -1,141 +1,84 @@
-# PEG — Map Maker and Simulator
+# PEG rulebook
 
-**PEG** is a fast-paced, chaotic yet strategic board game where players compete to expand and evolve their population 
-of pegs across a shared hexagonal world. This repository provides a fully editable **simulation GUI** 
-to design maps, run PEG phases, test game balance, and playtest solo or with others.
+## Overview
 
-> 🧠 PEG = **Play — Eat — Grow**, the three core phases of each round. 
+PEG (Play, Eat, Grow) is a fast-paced, spatial strategy game where players compete to grow their population of pegs on a shared hexagonal landscape. Food is placed onto the board by fate and players compete to consume it to fuel their growth. Victory is achieved not by a scoreboard but by controlling space: the first player to place all their pegs onto the board wins.
 
----
+## Components
 
-## 🎮 Game Overview
+![](https://t8575567.p.clickup-attachments.com/t8575567/14c1e714-b8cf-4720-aaa1-0d87e650683b/1000016727.jpg)
 
-- **PLAY**: Players place and move pegs on the hex grid of a shared PEG board
-- **EAT**: Food dice are rolled and placed on their matching hex for the adjacent pegs
-- **GROW**: Hexes with more than one die allow adjacent pegs to double in size or quantity
-- Pegs are moved by pulling dice off of adjacent hexes
-- The first player to grow and play all their pegs wins
-- The game is a mix of **tactical movement**, **dice-based chaos**, and **territorial control**
+*   PEG board
+*   Rain Dice (one blue D6 per player)
+*   Food Dice (six D6s in each player color)
+*   Pegs in player colors
 
----
+## Setup
 
-## 🧩 Components
+*   Configure board hexes for number of players and game style
+*   Place starting pegs
+*   Roll to determine starting PEG order
 
--  **PEG game board** with peg holes in a hexagonal grid
-- 🟢🟡🔵**Hex markers** matching die color and faces
-- 🟢🟡 **Pegs** in player colors, either stackable or sized (1, 2, 4, 8)
-- 💧🎲 **Rain Dice**: decide food supply each round
-- 🌽🎲 **Food Dice**: determine where food appears on the map
-- 🌱🎲 **Growth Die** (variant): determines which food face allows pegs to grow
+## Game Phases
 
----
+### P: PLAY Phase
 
-## 🎲 Setup
+(ALL)
+*   Roll Rain Die: result = number of Food Dice to roll
+*   Roll Food Dice
+*   Place all rolled dice onto board hex matching color and face
+    *   Players can choose between multiple options in some cases
+*   Push all unused dice against board to show they are not in player hands
 
-- Place PEG board within reach of all players
-- Arrange hex markers around board to form the map
-  - Map based on player count and balance preference
-  - Center hex should be water/blue
-- Agree on **number of available pegs** per player
-- Agree on **win condition**
-  - Simple: first player to play all of their pegs wins
-- Each player places **TWO** pegs (size = 1) touching any hex matching their color
-- Roll to determine initial PEG order (lower = first) and update board tracker
+### E: EAT Phase
 
----
+(IN PEG ORDER)
+*   Pull dice off of a hex adjacent to player peg and place in hand
+    *   Dice can be any color (not limited to eating own color)
+    *   Max dice per turn limited to number of pegs touching hex
+*   Continue until all possible dice have been pulled by all players
 
-## 🔁 Phases of Play: “P.E.G.”
+(ALL)
+*   Update PEG order based on dice in hand
+    *   Least dice in hand = first in PEG order
+    *   Most dice in hand = last in PEG order
+    *   Same # dice = maintain relative order
 
-### P — PLAY Phase
-- Each player: 
-  - **ROLL** one rain die
-  - **PLACE** # of **food dice** matching the rain die face into a **food dice pool** beside the board
-  - **PLACE** the rain die onto its matching **water hex** (blue)
-- *Variant: If two or more rain dice match, move them to the central water hex*
-- In PEG order, each player may:
-  - **PULL** one die adjacent to one of their pegs off the board to **MOVE** the peg
-  - Peg must remain on corners (or edges) if starting from a corner (or edge)
-  - Movement **range** is limited to the **peg size**
-  - Can jump over pegs of equal size or smaller (i.e. cannot jump over bigger pegs)
+### G: GROW Phase
 
-### E — EAT Phase
-- Each player:
-  - **ROLL** all dice in the **food dice pool** created in the previous phase
-  - **PLACE** each food die on the matching hex (based on color and face value)
-- **EAT SCORE** = total number of dice touched by each player's pegs on the board
-- **UPDATE** PEG order tracker: low EAT score (first) → high EAT score (last)
-  - Roll to break ties (lower = first)
+(ALL)
+*   Option to reroll any dice in hand once.
 
-### G — GROW Phase
+(IN ORDER)
+*   Choose one option:
+    *   Spend matching dice to place new pegs on the board (see table below)
+        *   Pegs must be placed adjacent to existing pegs
+    *   Spend dice to move pegs already on the board
+        *   Sum of die faces = movement range
+        *   Range can be shared across multiple pegs
 
-- In PEG order, each player may:
-  - **GRAB** one peg adjacent to any growth hex:
-    - A hex with more than one die on it
-    - *Variant: A hex with a die face matching the growth die*
-  - **CHOOSE** one growth type for the peg:
-    - **2x SIZE**: replace with a peg double the size
-    - **2x QUANTITY**: add another peg matching the peg pulled
-  - **PLACE** the grown peg(s) **on top of** the growth hex, but not in the peg holes (yet)
-    - Peg hole limit: If the hex is full (pegs around + on top of the hex = **12**), must choose **SIZE** growth
-    - *Variant: no peg hole limit, pegs are removed when growth is resolved if there is not enough room*
-- Once all eligible pegs have been pulled, in PEG order:
-  - **PLACE** own peg on top of hex into any empty peg hole around the hex
-  - *Note: the origin of the peg does not matter: a previous edge peg can be placed on a corner and vice versa.*
+| **Dice (6s = Wild)** | **Pegs** |
+| ---| --- |
+| Single 6 | +1 |
+| Any Pair | +1 |
+| Pair of 6s | +2 |
+| Any Triple | +2 |
+| Triple 6s | +3 |
+| Any Quad (4-of-a-kind) | +3 |
+| Quad 6s | +4 |
+| Any Quint (5-of-a-kind) | +4 |
+| Quint 6s | +5 |
+| Any Sext (6-of-a-kind) | +5 |
+| Sext 6s | +6 |
 
----
+## Winning the Game
 
-## 🎯 Victory Condition
+The first player to place all their pegs on the board wins!
 
+## Optional Tweaks and Variants
 
-- Standard: First to **place all their pegs on the board** wins the game
-  - No traditional scoring — board presence is the only score
-  - Players agree on the amount of pegs during setup
-- Variants:
-  - Reach certain **EAT score** (number of dice touched in the EAT phase)
-  - Largest **EAT score** on round X
-  - First player to touch every die on the board at the end of the EAT phase (max EAT score)
-
----
-
-## 🛠️ Simulation GUI Features
-
-This project includes a PyQt-based simulation interface to test and tune PEG:
-
-### ✨ Core Features
-
-- 🧱 **Editable hex map** with double-click to cycle colors and scroll to change numbers.
-- 🔘 **Drag-and-drop pegs** in sandbox mode — fully editable layout and size.
-- 📦 **Interactive dice pool** — food dice are placed visually on hexes.
-- 🧠 **Phase Buttons** — run the full PEG loop with logic wired to the board state.
-- 🧭 **corner/Edge Placement** — pegs snap to legal positions reflecting eaters/hunters.
-- 📈 Future features include strategy testing, AI opponents, and statistical balance reports.
-
-### 🧪 Developer Tools
-
-- `sandbox_mode`: freely edit the board, move pieces, change die values, and test.
-- Built-in `GameBoard`, `HexTile`, `Peg`, and `Die` classes for clear modularity.
-- Easily extend PEG mechanics, GUI logic, or test hooks via plug-and-play architecture.
-
----
-
-## 🤝 Design Philosophy
-
-> PEG is designed to feel like an ecosystem: dynamic, unpredictable, and surprisingly competitive.
-
-- 🎲 **Dice-driven chaos** with enough strategy to reward clever play.
-- 🐦 **Ecosystem asymmetry** — grow big or spread wide, block or leap.
-- 👨‍👩‍👧‍👦 **Bar-friendly fun** — low downtime, high replayability, lots of laughing at the rolls.
-
----
-
-## 📸 Screenshots & Dev Notes
-
-_coming soon!_
-
----
-
-## 🧪 Getting Started (Developers)
-
-```bash
-pip install PyQt6
-python peg_main.py
+### Sized pegs
+*   Pegs start at size = 1
+*   Growth can either add a new peg of the same size or double the size of a peg
+*   \[EAT\] Size determines the number of dice that can be pulled from a hex per turn
+*   \[GROW\] Size determines peg range and movement limitations. Pegs can only hop over other pegs of equal size or smaller.
