@@ -85,11 +85,15 @@ class MainWindow(QMainWindow):
         top_bar.addWidget(self.dice_pool_label)
 
         # PEG Phase Buttons
-        self.play_button = QPushButton("P (Play)")
+        self.plant_button = QPushButton("P (Plant)")
         self.eat_button = QPushButton("E (Eat)")
         self.grow_button = QPushButton("G (Grow)")
 
-        top_bar.addWidget(self.play_button)
+        self.plant_button.clicked.connect(self.click_plant)
+        self.eat_button.clicked.connect(self.game_state.run_eat_phase)
+        self.grow_button.clicked.connect(self.game_state.run_grow_phase)
+
+        top_bar.addWidget(self.plant_button)
         top_bar.addWidget(self.eat_button)
         top_bar.addWidget(self.grow_button)
 
@@ -113,16 +117,8 @@ class MainWindow(QMainWindow):
         self.player_dock.visibilityChanged.connect(player_dock_toggle_button.setChecked)
         top_bar.addWidget(player_dock_toggle_button)
 
-        # player_panel = QWidget()
-        # player_layout = QVBoxLayout()
-        # player_panel.setLayout(player_layout)
-        #
-        # for i in range(4):  # Placeholder for 4 players
-        #     label = QLabel(f"🧍 Player {i+1}")
-        #     label.setFrameStyle(QFrame.Shape.Box | QFrame.Shadow.Plain)
-        #     player_layout.addWidget(label)
-        #
-        # self.player_dock.setWidget(player_panel)
+        # Connect signal from GameBoard to PlayerDock slot
+        self.board.highlight_die_label.connect(self.player_dock.highlight_die_label)
 
         # === LEFT SIDEBAR (Sandbox / Editor Tools) ===
         # self.sandbox_dock = QDockWidget("Sandbox Tools", self)
@@ -140,7 +136,7 @@ class MainWindow(QMainWindow):
         # === BOTTOM PANEL (PEG Turn Order & Log) ===
         bottom_bar = QHBoxLayout()
 
-        self.turn_order_label = QLabel("🔁 Phase Order: [PLAY → EAT → GROW]")
+        self.turn_order_label = QLabel("🔁 Phase Order: [PLANT → EAT → GROW]")
         bottom_bar.addWidget(self.turn_order_label)
 
         self.status_log = QListWidget()
@@ -155,6 +151,9 @@ class MainWindow(QMainWindow):
         self.logger.info(msg)
         self.status_log.addItem(msg)
 
+    def update_panels(self):
+        self.player_dock.update_panel()
+
     def update_all(self):
         """Redraw all elements"""
         self.log('Update player dock')
@@ -162,6 +161,18 @@ class MainWindow(QMainWindow):
         self.log('Update game board')
         self.board.draw_board()
         # self.sandbox_dock.
+
+    def click_plant(self):
+        self.log('PLANT')
+        self.player_dock.update_panel()
+        self.game_state.run_plant_phase()
+
+        # summarize results of PLANT
+        for player in self.game_state.players.values():
+            # todo show "dice_in_hand()"
+            for die in player.get_dice():
+                if die.position is not None:
+                    self.log(f'{player.color} DIE {die.color} = {die.value}')
 
 
 def apply_dark_palette(app):

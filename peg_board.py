@@ -2,9 +2,10 @@ import logging
 import math
 import random
 from PyQt6.QtWidgets import (
-    QGraphicsPolygonItem, QGraphicsEllipseItem, QGraphicsTextItem
+    QGraphicsPolygonItem, QGraphicsEllipseItem, QGraphicsTextItem, QGraphicsRectItem
 )
-from PyQt6.QtGui import QBrush, QPen, QColor, QPolygonF
+from PyQt6.QtGui import QColor, QBrush, QPen, QPolygonF
+from PyQt6.QtCore import QRectF, QPropertyAnimation, pyqtSignal
 from PyQt6.QtCore import QPointF, Qt
 import hex_logic
 from peg_pieces import DICE_FACES, HEX_COLORS, HEX_RADIUS, BOARD_RADIUS, RAIN_COLOR, HOLE_RADIUS
@@ -14,7 +15,11 @@ from peg_pieces import HexTile, Peg
 
 
 class GameBoard(QGraphicsScene):
-    # todo consider how to allow peg sharing location? is that ever possible?
+    """VIEW + CONTROLLER: The visual, interactive scene where users see and manipulate the GameState"""
+
+    selection_mode_changed = pyqtSignal(str)
+    user_selected_hex = pyqtSignal(tuple)  # (q, r)
+    highlight_die_label = pyqtSignal(object)  # emit the Die instance
 
     def __init__(self, game_state: GameState, radius=BOARD_RADIUS, hex_size=HEX_RADIUS, x_center=400, y_center=300):
         super().__init__()
@@ -25,12 +30,17 @@ class GameBoard(QGraphicsScene):
         self.x_center = x_center
         self.y_center = y_center
         self.hexes = {}  # (q, r): HexTile instance
+        self.hex_items = {}  # (q, r): {"hex": hex_item, "text": text_item}
         self.pegs = {}  # ((q1,r1),(q2,r2),?): Peg instance
-        self.dice = []  # Die instances
 
         self.pointy_top = True
         self.sandbox_mode = False
         self.paint_color = None
+
+        # User hex selection
+        self.selection_mode = False
+        self.valid_hexes = []
+        self.highlight_items = {}
 
         self.build_hex_grid()
         self.draw_board()
@@ -61,7 +71,7 @@ class GameBoard(QGraphicsScene):
         for player in self.game_state.players.values():
             for die in player.get_dice():
                 die.remove_from_scene()
-
+        self.hex_items.clear()
         self.clear()
 
     def draw_board(self):
@@ -92,8 +102,9 @@ class GameBoard(QGraphicsScene):
             points.append(QPointF(px, py))
         return QPolygonF(points)
 
-    def draw_hex(self, x, y, hex_tile):
+    def draw_hex(self, q, r, hex_tile):
         self.logger.debug(f'DRAW {hex_tile.get_name()}')
+        x, y = self.hex_to_pixel(q, r)
 
         hex_item = QGraphicsPolygonItem(self.create_hex_polygon(x, y))
         hex_item.setBrush(QBrush(QColor(hex_tile.color)))
@@ -101,9 +112,53 @@ class GameBoard(QGraphicsScene):
         self.addItem(hex_item)
         hex_item.setZValue(-1)
 
-        num_text = QGraphicsTextItem(str(hex_tile.number))
-        num_text.setPos(x - 8, y - 10)
-        self.addItem(num_text)
+        text_item = QGraphicsTextItem(str(hex_tile.number))
+        text_item.setPos(x - 8, y - 10)
+        self.addItem(text_item)
+
+        # Draw dice count square (outline only)
+        dice_count = len(hex_tile.dice)
+        square_size = 16
+        square_x = x + 15
+        square_y = y - 20
+
+        if dice_count > 0:
+            self.logger.debug(f'HEX DICE = {dice_count}')
+
+            dice_square = QGraphicsRectItem(0, 0, square_size, square_size)
+            dice_square.setBrush(QBrush())  # transparent fill
+            dice_square.setPen(QPen(Qt.GlobalColor.black))
+            # dice_square.setPen(QPen(Qt.GlobalColor.white))
+            dice_square.setZValue(10)
+            dice_square.setPos(square_x, square_y)  # move square to pixel position
+            self.addItem(dice_square)
+
+            # Dice count text, centered inside the square
+            dice_text = QGraphicsTextItem(str(dice_count))
+            dice_text.setParentItem(dice_square)
+
+            # Center text inside the square
+            text_rect = dice_text.boundingRect()
+            dice_text.setPos(
+                (square_size - text_rect.width()) / 2,
+                (square_size - text_rect.height()) / 2
+            )
+            # dice_text.setDefaultTextColor(Qt.GlobalColor.black)
+            dice_text.setDefaultTextColor(Qt.GlobalColor.white)
+            dice_text.setZValue(11)
+
+        else:
+            self.logger.debug(f'NO HEX DICE')
+            dice_square = None
+            dice_text = None
+
+        # save graphics items for reference
+        self.hex_items[(q, r)] = {
+            'hex': hex_item,
+            'text': text_item,
+            'dice_square': dice_square,
+            'dice_text': dice_text,
+        }
 
         # for i, peg in enumerate(hex_tile.pegs):
         #     angle = math.radians(i * 120)
@@ -115,13 +170,9 @@ class GameBoard(QGraphicsScene):
         # for i, die in enumerate(hex_tile.dice):
         #     die.add_to_scene(self, self.hex_to_pixel)
 
-    def scene(self):
-        pass
-
     def draw_hexes(self):
         for (q, r), hex_tile in self.hexes.items():
-            x, y = self.hex_to_pixel(q, r)
-            self.draw_hex(x, y, hex_tile)
+            self.draw_hex(q, r, hex_tile)
             self.draw_peg_holes(q, r)
 
     def draw_peg_hole(self, x, y, hole_radius=HOLE_RADIUS):
@@ -146,6 +197,74 @@ class GameBoard(QGraphicsScene):
             x += self.x_center
             y += self.y_center
             self.draw_peg_hole(x, y, hole_radius=hole_radius)
+
+    def enter_selection_mode(self, color, die, valid_hexes):
+        self.logger.info(f'{color} SELECT FROM {valid_hexes}')
+        self.selection_mode = True
+        self.selection_mode_changed.emit(str(color))
+        self.valid_hexes = valid_hexes
+        self.highlight_valid_hexes(valid_hexes)
+        self.highlight_die_label.emit(die)
+
+    def highlight_valid_hexes(self, valid_hexes):
+        """Draw semi-transparent halos on valid hexes for selection."""
+        self.clear_highlights()
+        self.highlight_items = {}
+
+        for (q, r) in valid_hexes:
+            self.logger.info(f'HIGHLIGHT HEX ({q},{r})')
+            hex_tile = self.hexes.get((q, r))
+            if not hex_tile:
+                continue
+
+            # Create halo (ellipse slightly larger than hex)
+            hex_item = self.hex_items.get((q, r)).get("hex", None)
+            if hex_item:
+                rect = hex_item.boundingRect()
+                halo = self.addEllipse(
+                    rect.adjusted(-5, -5, 5, 5),
+                    QPen(QColor(0, 200, 255, 200), 2),
+                    QBrush(QColor(0, 200, 255, 90))
+                )
+                halo.setZValue(30)  # ensure it's above the board
+                # halo.setParentItem(hex_item)
+                self.highlight_items[(q, r)] = halo
+
+            else:
+                self.logger.error(f'CANNOT HIGHLIGHT HEX ({q},{r})')
+
+    def clear_highlights(self):
+        """Remove all highlight halos from the scene."""
+        if not hasattr(self, "highlight_items"):
+            return
+        self.highlight_die_label.emit(None)
+        self.highlight_items.clear()
+        self.draw_board()
+
+    def hex_at(self, scene_pos):
+        """Return (q, r) of clicked hex, or None if no hex found."""
+        for (q, r), items in self.hex_items.items():
+            if items["hex"].contains(items["hex"].mapFromScene(scene_pos)):
+                return (q, r)
+        return None
+
+    def mousePressEvent(self, event):
+        self.logger.info(f'MOUSE PRESS EVENT')
+        if self.selection_mode:
+            clicked_hex = self.hex_at(event.scenePos())
+            self.logger.debug(f'SELECTION MODE: CLICKED HEX = {clicked_hex}')
+            if clicked_hex in self.valid_hexes:
+                self.logger.debug(f'CLICKED HEX VALID, EMIT + EXIT SELECTION MODE')
+                self.user_selected_hex.emit(clicked_hex)
+                # self.exit_selection_mode()
+        else:
+            super().mousePressEvent(event)
+
+    def exit_selection_mode(self, reason=None):
+        self.logger.debug(f'EXIT SELECTION MODE: {reason if reason else ""}')
+        self.selection_mode = False
+        self.selection_mode_changed.emit('')
+        self.clear_highlights()
 
     def mouseReleaseEvent(self, event):
         """Update HEX color in sandbox mode"""
@@ -208,43 +327,3 @@ class GameBoard(QGraphicsScene):
         if peg.position:
             return [self.hexes[qr] for qr in peg.position if qr in self.hexes]
         return []
-
-    def assign_rain_die_to_hex(self, die):
-        for (q, r), hex_tile in self.hexes.items():
-            if hex_tile.color == RAIN_COLOR and hex_tile.number == die.value:
-                self.logger.info(f"ASSIGN {die.get_name()} TO {hex_tile.get_name()}")
-
-                original_hex = self.hexes.get(die.position, None)
-                if original_hex:
-                    self.logger.debug(f"REMOVE {die.get_name()} FROM {original_hex.get_name()}")
-                    original_hex.dice.remove(die)
-                hex_tile.dice.append(die)
-                die.position = (q, r)
-                self.draw_board()
-                return
-
-        self.logger.info(f"ASSIGN {die.get_name()} to POOL")
-        die.position = None
-
-    def roll_rain_dice(self):
-        for i, die in enumerate(self.dice):
-            if die.color == RAIN_COLOR:
-                self.logger.info(f'ROLL RAIN DIE {i}')
-                die.reroll()
-
-            self.logger.info(f'ASSIGN RAIN DIE {i}')
-            self.assign_rain_die_to_hex(die=die)
-
-        self.draw_board()  # ensure new roll is reflected
-
-    def play_phase(self):
-        from peg_rules import play_phase_logic
-        play_phase_logic(self)
-
-    def eat_phase(self):
-        from peg_rules import eat_phase_logic
-        eat_phase_logic(self)
-
-    def grow_phase(self):
-        from peg_rules import grow_phase_logic
-        grow_phase_logic(self)

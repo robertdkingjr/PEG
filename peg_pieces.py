@@ -16,15 +16,15 @@ HEX_COLORS = [
     'green',
     # 'darkGreen',
     # 'darkOrange',
-    'grey',
+    # 'grey',
     'purple',
-    'darkBlue',
-    'olive',
-    # 'chartreuse',
-    'yellowGreen',
-    # 'lime',
-    'seaGreen',
-    'brown'
+    # 'darkBlue',
+    # 'olive',
+    # # 'chartreuse',
+    # 'yellowGreen',
+    # # 'lime',
+    # 'seaGreen',
+    # 'brown'
 ]
 RAIN_COLOR = 'blue'
 DICE_FACES = [1, 2, 3, 4, 5, 6]
@@ -327,7 +327,7 @@ class DieItem(QGraphicsRectItem):
 
     def update_visual(self):
         self.setBrush(QBrush(QColor(self.die.color)))
-        self.label.setPlainText(self.die.value)
+        self.label.setPlainText(str(self.die.value))
         self.setToolTip(f"Die: {self.die.color} {self.die.value}")
 
 
@@ -335,18 +335,21 @@ class Die:
     def __init__(self, color, value=None, board=None, position=None):
         """
         Parameters:
-            color (str): Die color (e.g. 'yellow', 'green')
+            color (str): Die color (e.g. 'yellow', 'green') - forced uppercase
             value (str/int): Face value
             board (GameBoard): Reference to board
             position (tuple): (q, r) hex position or None if in dice pool
         """
-        self.color = color
+        self.color = str(color).upper()
         self.value = value
         self.board = board
         self.position = position  # None = dice pool, else (q, r)
 
         # GUI item
         self.item = DieItem(self)
+
+    def __repr__(self):
+        return f'DIE[{str(self.color).upper()}-{self.value}]'
 
     def reroll(self):
         """Change to a random new face value."""

@@ -22,6 +22,8 @@ class PlayerDock(QDockWidget):
 
         self.setWidget(self.widget)
 
+        self.die_label_map = {}  # key = Die object: value = QLabel object
+
     def update_panel(self):
         self.logger.debug(f'update_panel')
 
@@ -34,7 +36,7 @@ class PlayerDock(QDockWidget):
         for player in self.game_state.players.values():
             self.layout.addWidget(self.create_player_row(player))
 
-    def create_player_row(self, player):
+    def create_player_row(self, player) -> QFrame:
         self.logger.debug(f'create_player_row')
 
         row = QFrame()
@@ -43,13 +45,20 @@ class PlayerDock(QDockWidget):
         layout.setContentsMargins(5, 2, 5, 2)
         layout.setSpacing(4)
 
-        # Color block
+        # Player color block
         color_box = QLabel()
         color_box.setFixedSize(20, 20)
         pix = QPixmap(20, 20)
         pix.fill(QColor(player.color))
+        painter = QPainter(pix)
+        painter.setPen(Qt.GlobalColor.black)
+        painter.drawText(pix.rect(), Qt.AlignmentFlag.AlignCenter, ':)')
+        painter.end()
         color_box.setPixmap(pix)
         layout.addWidget(color_box)
+
+        # Show remaining pegs
+        layout.addWidget(self.make_n_pegs_icon(color=player.color, n_pegs=len(player.pegs)))
 
         # Rain Dice
         for die in player.rain_dice:
@@ -59,13 +68,28 @@ class PlayerDock(QDockWidget):
         for die in player.food_dice:
             layout.addWidget(self.make_die_icon(die))
 
-        # Pegs
-        for peg in player.pegs:
-            layout.addWidget(self.make_peg_icon(peg))
+        # # Pegs
+        # for peg in player.pegs:
+        #     layout.addWidget(self.make_peg_icon(peg))
 
         return row
 
-    def make_die_icon(self, die):
+    def highlight_die_label(self, die):
+        self.update_panel()
+        label = self.die_label_map.get(die)
+        if label:
+            label.setStyleSheet("""
+                    border: 2px solid #00C8FF;
+                    border-radius: 4px;
+                    background-color: rgba(0, 200, 255, 30);
+                """)
+        else:
+            # Clear existing highlights first
+            for label in self.die_label_map.values():
+                label.setStyleSheet("")  # reset style
+
+
+    def make_die_icon(self, die) -> QLabel:
         size = 20
         pix = QPixmap(size, size)
         pix.fill(Qt.GlobalColor.transparent)
@@ -83,6 +107,25 @@ class PlayerDock(QDockWidget):
         label.setPixmap(pix)
         label.setFixedSize(QSize(size + 2, size + 2))
         label.setToolTip(f"Die: {die.color} {die.value}")
+        self.die_label_map[die] = label
+        return label
+
+    def make_n_pegs_icon(self, color, n_pegs):
+        size = 25
+        pix = QPixmap(size, size)
+        pix.fill(Qt.GlobalColor.transparent)
+        painter = QPainter(pix)
+        color = QColor(color)
+        painter.setBrush(color)
+        painter.setPen(Qt.GlobalColor.black)
+        painter.drawEllipse(2, 2, size - 4, size - 4)
+        painter.drawText(pix.rect(), Qt.AlignmentFlag.AlignCenter, str(n_pegs))
+        painter.end()
+
+        label = QLabel()
+        label.setPixmap(pix)
+        label.setFixedSize(QSize(size + 2, size + 2))
+        label.setToolTip(f"Remaining pegs: {n_pegs}")
         return label
 
     def make_peg_icon(self, peg):
