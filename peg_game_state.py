@@ -126,6 +126,7 @@ class GameState:
                     # no place — mark out of play
                     self.logger.info(f'{color} - NO SPOT FOR {die}')
                     self.place_die(die=die, position=None)
+                    die.value = 'X'
 
                 elif len(valid_hexes) == 1:
                     # deterministic placement

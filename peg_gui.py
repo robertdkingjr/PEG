@@ -81,7 +81,7 @@ class MainWindow(QMainWindow):
         top_bar = QHBoxLayout()
 
         # Dice Pool
-        self.dice_pool_label = QLabel("🎲 Dice Pool:")
+        self.dice_pool_label = QLabel("🎲 PHASES:")
         top_bar.addWidget(self.dice_pool_label)
 
         # PEG Phase Buttons
@@ -96,10 +96,6 @@ class MainWindow(QMainWindow):
         top_bar.addWidget(self.plant_button)
         top_bar.addWidget(self.eat_button)
         top_bar.addWidget(self.grow_button)
-
-        # Current Growth Die Display
-        self.growth_label = QLabel("✖️ Growth Die: ?")
-        top_bar.addWidget(self.growth_label)
 
         top_bar.addStretch()
         central_layout.insertLayout(0, top_bar)  # Insert above board
