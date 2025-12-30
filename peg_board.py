@@ -106,8 +106,10 @@ class GameBoard(QGraphicsScene):
         self.logger.debug(f'DRAW {hex_tile.get_name()}')
         x, y = self.hex_to_pixel(q, r)
 
+        hex_color = QColor(hex_tile.color).darker(120)
+
         hex_item = QGraphicsPolygonItem(self.create_hex_polygon(x, y))
-        hex_item.setBrush(QBrush(QColor(hex_tile.color)))
+        hex_item.setBrush(QBrush(hex_color))
         hex_item.setPen(QPen(Qt.GlobalColor.black))
         self.addItem(hex_item)
         hex_item.setZValue(-1)
@@ -119,14 +121,14 @@ class GameBoard(QGraphicsScene):
         # Draw dice count square (outline only)
         dice_count = len(hex_tile.dice)
         square_size = 16
-        square_x = x + 15
+        square_x = x + 10
         square_y = y - 20
 
         if dice_count > 0:
             self.logger.debug(f'HEX DICE = {dice_count}')
 
             dice_square = QGraphicsRectItem(0, 0, square_size, square_size)
-            dice_square.setBrush(QBrush())  # transparent fill
+            dice_square.setBrush(QBrush(hex_color.darker(150)))
             dice_square.setPen(QPen(Qt.GlobalColor.black))
             # dice_square.setPen(QPen(Qt.GlobalColor.white))
             dice_square.setZValue(10)
@@ -221,10 +223,11 @@ class GameBoard(QGraphicsScene):
             hex_item = self.hex_items.get((q, r)).get("hex", None)
             if hex_item:
                 rect = hex_item.boundingRect()
+                adjustment = 5
                 halo = self.addEllipse(
-                    rect.adjusted(-5, -5, 5, 5),
+                    rect.adjusted(-adjustment, -adjustment, adjustment, adjustment),
                     QPen(QColor(0, 200, 255, 200), 2),
-                    QBrush(QColor(0, 200, 255, 90))
+                    QBrush(QColor(0, 200, 255, 50))
                 )
                 halo.setZValue(30)  # ensure it's above the board
                 # halo.setParentItem(hex_item)

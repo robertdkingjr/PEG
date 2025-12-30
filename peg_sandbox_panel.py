@@ -70,10 +70,10 @@ class SandboxDock(QDockWidget):
         add_btn.clicked.connect(self.add_player)
         layout.addWidget(add_btn)
 
-        # Remove Player Button
-        remove_btn = QPushButton("Remove Player")
-        remove_btn.clicked.connect(self.remove_player)
-        layout.addWidget(remove_btn)
+        # # Remove Player Button
+        # remove_btn = QPushButton("Remove Player")
+        # remove_btn.clicked.connect(self.remove_player)
+        # layout.addWidget(remove_btn)
 
         layout.addWidget(self.sandbox_toggle)
         layout.addWidget(self.hex_orientation_toggle)

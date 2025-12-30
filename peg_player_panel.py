@@ -80,7 +80,7 @@ class PlayerDock(QDockWidget):
         if label:
             label.setStyleSheet("""
                     border: 2px solid #00C8FF;
-                    border-radius: 4px;
+                    padding: 0px;
                     background-color: rgba(0, 200, 255, 30);
                 """)
         else:
@@ -88,19 +88,22 @@ class PlayerDock(QDockWidget):
             for label in self.die_label_map.values():
                 label.setStyleSheet("")  # reset style
 
-
     def make_die_icon(self, die) -> QLabel:
-        size = 20
+        size = 40
         pix = QPixmap(size, size)
         pix.fill(Qt.GlobalColor.transparent)
         painter = QPainter(pix)
-        color = QColor(die.color)
-        if die.position is not None:
-            color.setAlpha(100)  # Greyed out if placed
+        color = QColor(die.color).darker(120)
+        if die.position is None:
+            color = color.darker(255)
+            color.setAlpha(100)
+        else:
+            color = color.darker(150)
         painter.setBrush(color)
         painter.setPen(Qt.GlobalColor.black)
-        painter.drawRect(2, 2, size - 4, size - 4)
-        painter.drawText(pix.rect(), Qt.AlignmentFlag.AlignCenter, str(die.value or "?"))
+        painter.drawRect(0, 0, size, size)
+        painter.setPen(Qt.GlobalColor.white)
+        painter.drawText(pix.rect(), Qt.AlignmentFlag.AlignCenter, str(die.value or '?'))
         painter.end()
 
         label = QLabel()
@@ -111,11 +114,11 @@ class PlayerDock(QDockWidget):
         return label
 
     def make_n_pegs_icon(self, color, n_pegs):
-        size = 25
+        size = 30
         pix = QPixmap(size, size)
         pix.fill(Qt.GlobalColor.transparent)
         painter = QPainter(pix)
-        color = QColor(color)
+        color = QColor(color).lighter(150)
         painter.setBrush(color)
         painter.setPen(Qt.GlobalColor.black)
         painter.drawEllipse(2, 2, size - 4, size - 4)

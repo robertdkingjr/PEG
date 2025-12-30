@@ -17,5 +17,5 @@ if __name__ == '__main__':
     apply_dark_palette(app)
     app.setStyle('Fusion')
     window = MainWindow()
-    window.show()
+    window.showMaximized()
     sys.exit(app.exec())
